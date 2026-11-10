@@ -459,8 +459,8 @@ window.CIRCUITO_TEXTOS = {
   pide_llave: 'El operador le pide la llave al chofer',
   entrega_llave: 'El chofer le entrega la llave',
   guarda_llave: 'Guarda la llave en la caja de la zona segura',
-  a_ruedas: 'Lleva el autoelevador hasta las ruedas del semi',
-  pone_traba: 'Pone el traba ruedas de los dos lados',
+  a_ruedas: 'Lleva el autoelevador hasta la rueda delantera del camión',
+  pone_traba: 'Pone el traba ruedas en la rueda delantera, lado conductor',
   descargando: 'Descargando paleta {n} de {total} del dock {dock}',
   al_staging: 'Deja la paleta en el staging del dock {dock}',
   fin_descarga: 'Descarga terminada · el autoelevador libera el dock',
@@ -469,7 +469,11 @@ window.CIRCUITO_TEXTOS = {
   devuelve_llave: 'Le devuelve la llave al chofer',
   va_traba: 'Va a sacar el traba ruedas',
   saca_traba: 'Saca el traba ruedas',
-  chofer_vuelve: 'El chofer vuelve al semi',
+  chofer_vuelve: 'El chofer vuelve al camión',
+  chofer_baja: 'El chofer baja con la llave y va a la zona segura',
+  traba_ok: 'Traba ruedas puesto · arranca la carga',
+  vuelve_zona_carga: 'Carga terminada · el autoelevador va a la zona segura',
+  sale_cargado: 'Sale el camión cargado hacia la playa',
   egreso: 'Sale del dock hacia la gatera de egreso',
   fin: 'Viaje terminado · el semi salió vacío por calle Ramón Carrillo',
   etiq_llega: 'Staging: llega el operario a etiquetar las paletas',
@@ -2419,7 +2423,19 @@ window.CIRCUITO_TEXTOS = {
       return g;
     }
 
-    function buildPallet(color){
+    /* marcas de las paletas: solo nombre en texto y un color para distinguirlas (se editan aca) */
+    var MARCAS = [
+      { nombre:'QUILMES', color:0x1f5fbf, fondo:'#ffffff', texto:'#12336e' },
+      { nombre:'BRAHMA', color:0xd9363a, fondo:'#ffffff', texto:'#8e1418' },
+      { nombre:'STELLA ARTOIS', color:0xf2f2f2, fondo:'#2a2d33', texto:'#ffffff' }
+    ];
+    var NOMBRE_CAMION = 'QUILMES';
+    var marcaGeoA = new THREE.PlaneGeometry(1.0, 0.26), marcaGeoB = new THREE.PlaneGeometry(0.9, 0.26);
+    function marcaMat(m){
+      return m.mat || (m.mat = new THREE.MeshBasicMaterial({ map:textTex(m.nombre, m.fondo, m.texto, 320, 84, 'bold ' + (m.nombre.length > 8 ? 34 : 46) + 'px "IBM Plex Mono",monospace') }));
+    }
+    function buildPallet(){
+      var marca = MARCAS[(Math.random() * MARCAS.length) | 0], color = marca.color;
       var g = new THREE.Group();
       box(1.1, 0.05, 1.0, WOOD, 0, 0.125, 0, g);
       [-0.45, 0, 0.45].forEach(function(x){ box(0.16, 0.1, 1.0, WOODD, x, 0.05, 0, g); });
@@ -2428,6 +2444,10 @@ window.CIRCUITO_TEXTOS = {
         box(0.53, 0.48, 0.96, color, s * 0.275, y0 + 0.24, 0, g);
         if(L === 1) studs(g, s * 0.275, y0 + 0.48, 0, 2, 4, 0.24, color);
       });
+      [[0, 0.484, 0, marcaGeoA], [0, -0.484, Math.PI, marcaGeoA], [0.544, 0, Math.PI / 2, marcaGeoB], [-0.544, 0, -Math.PI / 2, marcaGeoB]].forEach(function(q){
+        var pl = new THREE.Mesh(q[3], marcaMat(marca)); pl.position.set(q[0], 0.87, q[1]); pl.rotation.y = q[2]; g.add(pl);
+      });
+      g.userData.marca = marca.nombre;
       return g;
     }
 
@@ -2467,7 +2487,7 @@ window.CIRCUITO_TEXTOS = {
     function buildTruck(type){
       var L = type === 'semi' ? 13.4 : 6.8, rows = Math.floor(L / 1.1);
       var g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-      var rail = type === 'semi' ? 0x7a828f : 0x1f5fbf, cab = type === 'semi' ? 0x22408a : 0xd9363a;
+      var rail = type === 'semi' ? 0x7a828f : 0x1f5fbf, cab = 0x22408a;
       var zf = TZ, zb = zf + L, zc = zb + 0.25;
       box(2.6, 0.22, L, 0x59606b, 0, 1.09, zf + L / 2, body);
       box(1.1, 0.5, L + 2.4, BLK, 0, 0.82, zf + (L + 2.4) / 2, body);
@@ -2486,6 +2506,12 @@ window.CIRCUITO_TEXTOS = {
       });
       box(2.6, 1.75, 0.14, rail, 0, 2.075, zb + 0.07, body);
       box(2.5, 2.2, 2.2, cab, 0, 2.0, zc + 1.1, body); studs(body, 0, 3.1, zc + 1.1, 4, 4, 0.5, cab);
+      var nomMat = new THREE.MeshBasicMaterial({ map:textTex(NOMBRE_CAMION, '#ffffff', '#12336e', 384, 96, 'bold 58px "IBM Plex Mono",monospace') });
+      [-1, 1].forEach(function(sd){
+        var np = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.42), nomMat); np.position.set(sd * 1.256, 1.5, zc + 1.1); np.rotation.y = sd * Math.PI / 2; body.add(np);
+      });
+      var nf = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.3), nomMat); nf.position.set(0, 1.84, zc + 2.215); body.add(nf);
+      var nb = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.5), nomMat); nb.position.set(0, 2.2, zb - 0.005); nb.rotation.y = Math.PI; body.add(nb);
       var ws = new THREE.Mesh(ub, glass); ws.scale.set(2.2, 0.85, 0.06); ws.position.set(0, 2.45, zc + 2.21); body.add(ws);
       [-1, 1].forEach(function(s){
         var w = new THREE.Mesh(ub, glass); w.scale.set(0.06, 0.7, 0.9); w.position.set(s * 1.26, 2.45, zc + 1.5); body.add(w);
@@ -2611,6 +2637,7 @@ window.CIRCUITO_TEXTOS = {
       buildDeco(); if(!empty) restock(); hideArea();
       setStatus(mode === 'auto' ? 'Camión en el dock ' + dockNum() + ' · arranca la carga' : 'Modo manual · agarrá un pallet del staging');
       updateCounter();
+      startLoadProto();
       if(simCam !== 'seguir') setSimCam(simCam === 'arriba' ? 'arriba' : 'general');
     }
     function loadedCount(){ return truck.slots.filter(function(s){ return s.p; }).length; }
@@ -2736,6 +2763,7 @@ window.CIRCUITO_TEXTOS = {
     }
     function departTruck(){
       if(circ){ circ.loaded = true; truck.state = 'circuit'; return; }
+      if(lp){ lp.loaded = true; truck.state = 'busy'; return; }
       if(truck.state !== 'docked') return;
       truck.state = 'leaving'; truck.t = 0;
       setStatus('Sale el camión cargado hacia la playa');
@@ -2780,7 +2808,7 @@ window.CIRCUITO_TEXTOS = {
         }
       } else if(truck.state === 'arriving'){
         truck.t = Math.min(1, truck.t + dt / 5); truck.g.position.z = 40 * (1 - easeOut(truck.t));
-        if(truck.t >= 1){ truck.state = 'docked'; truck.g.position.z = 0; updateCounter();
+        if(truck.t >= 1){ truck.state = lp ? 'hold' : 'docked'; truck.g.position.z = 0; updateCounter();
           setStatus(mode === 'auto' ? 'Camión en el dock ' + dockNum() + ' · arranca la carga' : 'Camión en el dock · ¡a cargar!'); }
       }
     }
@@ -2809,7 +2837,7 @@ window.CIRCUITO_TEXTOS = {
       if(allowed(nx, nz, fl.head, fl.h)){ fl.x = nx; fl.z = nz; } else fl.v = 0;
       var nhgt = Math.max(0, Math.min(2.2, fl.h + fi * 0.9 * dt));
       var f = fwd(), cx = fl.x + f.x * OFF, cz = fl.z + f.z * OFF;
-      if(fl.carry && fl.h > BT && nhgt <= BT && overBed(cx, cz)){ fl.h = BT; placeInTruck(cx, cz); return; }
+      if(fl.carry && fi < 0 && fl.h >= BT && nhgt <= BT + 0.1 && overBed(cx, cz)){ placeInTruck(cx, cz); if(!fl.carry){ fl.h = BT + 0.04; return; } }
       if(nhgt < fl.h && !allowed(fl.x, fl.z, fl.head, nhgt)) nhgt = fl.h;      /* no baja las uñas sobre la caja del camión */
       if(!fl.carry && fl.h < 0.12 && nhgt >= 0.12) tryGrab();
       if(fl.carry && nhgt <= 0.001 && fl.h > 0.001){ fl.h = 0; dropFloor(); setStatus('Pallet apoyado en el piso'); return; }
@@ -2851,6 +2879,7 @@ window.CIRCUITO_TEXTOS = {
       if(mode === 'auto'){ var sdt = dt * speed; for(var i = 0; i < nsub; i++) stepAuto(sdt / nsub); updateTruck(sdt); }
       else { manualUpdate(dt); updateTruck(dt); }
       if(circ){ for(var ci = 0; ci < nsub; ci++) circUpdate(dt * speed / nsub); }
+      else if(lp && mode === 'auto'){ for(var li = 0; li < nsub; li++) lpUpdate(dt * speed / nsub); }
       for(var j = pops.length - 1; j >= 0; j--){
         var p = pops[j]; p.t += rdt * 2.2; var t = Math.max(0, Math.min(1, p.t));
         p.g.scale.setScalar(Math.max(0.001, t < 1 ? (1 + Math.sin(t * Math.PI) * 0.25) * easeOut(t) : 1));
@@ -2884,7 +2913,7 @@ window.CIRCUITO_TEXTOS = {
     var CIRC_DOCK = 25, circ = null, preDi = 11;
     /* los textos se editan en el bloque TEXTOS DEL CIRCUITO, al principio del archivo; estos son los de respaldo */
     var TXU = window.CIRCUITO_TEXTOS || {};
-    var TXD = { vigilancia:'Playa de semis · vigilancia controla al camión', ingreso:'Segundo control · gatera de ingreso', estaciona:'Estaciona marcha atrás en el dock {dock}', ae_zona:'El autoelevador se acerca a la zona segura', pide_llave:'El operador le pide la llave al chofer', entrega_llave:'El chofer le entrega la llave', guarda_llave:'Guarda la llave en la caja de la zona segura', a_ruedas:'Lleva el autoelevador hasta las ruedas del semi', pone_traba:'Pone el traba ruedas de los dos lados', descargando:'Descargando paleta {n} de {total} del dock {dock}', al_staging:'Deja la paleta en el staging del dock {dock}', fin_descarga:'Descarga terminada · el autoelevador libera el dock', vuelve_zona:'Descarga terminada · el autoelevador va a la zona segura', saca_llave:'Saca la llave de la caja', devuelve_llave:'Le devuelve la llave al chofer', va_traba:'Va a sacar el traba ruedas', saca_traba:'Saca el traba ruedas', chofer_vuelve:'El chofer vuelve al semi', egreso:'Sale del dock hacia la gatera de egreso', fin:'Viaje terminado · el semi salió vacío por calle Ramón Carrillo', etiq_llega:'Staging: llega el operario a etiquetar las paletas', etiq:'Staging: etiquetando paleta {n} de {total}', etiq_fin:'Staging: todas las paletas etiquetadas' };
+    var TXD = { chofer_baja:'El chofer baja con la llave y va a la zona segura', traba_ok:'Traba ruedas puesto · arranca la carga', vuelve_zona_carga:'Carga terminada · el autoelevador va a la zona segura', sale_cargado:'Sale el camión cargado hacia la playa', vigilancia:'Playa de semis · vigilancia controla al camión', ingreso:'Segundo control · gatera de ingreso', estaciona:'Estaciona marcha atrás en el dock {dock}', ae_zona:'El autoelevador se acerca a la zona segura', pide_llave:'El operador le pide la llave al chofer', entrega_llave:'El chofer le entrega la llave', guarda_llave:'Guarda la llave en la caja de la zona segura', a_ruedas:'Lleva el autoelevador hasta la rueda delantera del camión', pone_traba:'Pone el traba ruedas en la rueda delantera, lado conductor', descargando:'Descargando paleta {n} de {total} del dock {dock}', al_staging:'Deja la paleta en el staging del dock {dock}', fin_descarga:'Descarga terminada · el autoelevador libera el dock', vuelve_zona:'Descarga terminada · el autoelevador va a la zona segura', saca_llave:'Saca la llave de la caja', devuelve_llave:'Le devuelve la llave al chofer', va_traba:'Va a sacar el traba ruedas', saca_traba:'Saca el traba ruedas', chofer_vuelve:'El chofer vuelve al camión', egreso:'Sale del dock hacia la gatera de egreso', fin:'Viaje terminado · el semi salió vacío por calle Ramón Carrillo', etiq_llega:'Staging: llega el operario a etiquetar las paletas', etiq:'Staging: etiquetando paleta {n} de {total}', etiq_fin:'Staging: todas las paletas etiquetadas' };
     var CSTEPS = ['Ingreso por calle Ramón Carrillo', 'Playa de semis · control de vigilancia', 'Segundo control · gatera de ingreso', 'Vuelta por el perímetro hasta el dock 26', 'Estaciona en el dock 26', 'El chofer baja y va a la zona segura', 'El autoelevador va a la zona segura · pide la llave y la guarda', 'Pone el traba ruedas', 'Descarga de las 24 paletas al staging', 'Devuelve la llave · saca el traba ruedas', 'Segundo control · gatera de egreso', 'Sale por calle Ramón Carrillo'];
     var CSTEPS_DEF = CSTEPS.slice();
     if(TXU.pasos && TXU.pasos.length === CSTEPS.length) CSTEPS = TXU.pasos.map(String);
@@ -2989,7 +3018,7 @@ window.CIRCUITO_TEXTOS = {
       var f = minifig({ torso:0x1b2a4a, legs:0x1b2a4a, vest:0xd9e021, helmet:0x1b2a4a, armX:0 });
       f.position.set(pt.x, 0, pt.z); f.rotation.y = rot || 0; circ.props.add(f); return { g:f };
     }
-    function safeZone(pt){
+    function safeZone(pt, parent){
       var g = new THREE.Group(); g.position.set(pt.x, PLATE * 0, pt.z);
       box(3.0, 0.1, 3.0, 0x18d65a, 0, 0.05, 0, g);
       [[-1.2, -1.2], [1.2, -1.2], [-1.2, 1.2], [1.2, 1.2]].forEach(function(c){ box(0.14, 2.5, 0.14, 0xd8dde4, c[0], 1.3, c[1], g); });
@@ -2998,7 +3027,7 @@ window.CIRCUITO_TEXTOS = {
       [-1.6, 1.6].forEach(function(x){ box(0.24, 1.0, 0.24, YEL, x, 0.5, 1.75, g); });
       box(0.4, 0.5, 0.18, 0xFFC000, 1.05, 1.5, -1.25, g);   /* caja de llaves */
       var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:signTex('ZONA SEGURA', '#1e8e4a', '#ffffff') })); sp.scale.set(3.6, 1.35, 1); sp.position.set(0, 3.7, 0); g.add(sp);
-      circ.props.add(g); return g;
+      parent.add(g); return g;
     }
     var keyTex = null;
     function keyIcon(){
@@ -3006,7 +3035,8 @@ window.CIRCUITO_TEXTOS = {
         x.font = '52px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🔑', 48, 52); });
       var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:keyTex, depthTest:false })); sp.scale.set(0.9, 0.9, 1); sp.renderOrder = 5; return sp;
     }
-    function holdKey(parentObj, y){ var k = circ.key; if(k.parent) k.parent.remove(k); k.position.set(0, y, 0); parentObj.add(k); }
+    var pk = null;   /* kit de zona segura en uso (circuito o carga) */
+    function holdKey(parentObj, y){ var k = pk.key; if(k.parent) k.parent.remove(k); k.position.set(0, y, 0); parentObj.add(k); }
     function chock(){
       var g = new THREE.Group(), m = mat(YEL);
       var shape = new THREE.Shape(); shape.moveTo(-0.22, 0); shape.lineTo(0.22, 0); shape.lineTo(-0.22, 0.28); shape.lineTo(-0.22, 0);
@@ -3058,6 +3088,115 @@ window.CIRCUITO_TEXTOS = {
       for(var i = 0; i < CSTEPS.length; i++) html += '<i class="' + (i < circ.step || circ.finished ? 'ok' : i === circ.step ? 'on' : '') + '"></i>';
       el.innerHTML = html + '</span>';
     }
+
+    var ZSEG = [[533, 295], [629, 295], [725, 290], [825, 292], [922, 292], [1017, 292], [1128, 295], [1225, 295]];   /* zonas seguras del plano */
+    function nearestZS(){ var dk = SD[di], b = ZSEG[0]; ZSEG.forEach(function(z){ if(Math.abs(z[0] - dk) < Math.abs(b[0] - dk)) b = z; }); return b; }
+    /* Procedimiento de zona segura: chofer baja con la llave, el operador del autoelevador la pide y la guarda,
+       pone el traba ruedas en la rueda delantera del lado del conductor; al final devuelve todo. Lo usan el circuito y la carga. */
+    function mkKit(props, C){
+      var K = { props:props, C:C };
+      safeZone(C, props);
+      var trucker = { g:minifig({ torso:0xc0392b, legs:0x1f3f7a, helmet:0x1f5fbf, vest:0xff7a1a }) }; trucker.g.visible = false; props.add(trucker.g);
+      var oper = { g:minifig({ torso:0x2b2b2b, legs:0x2b2b2b, vest:0xff7a1a, helmet:0xf5f5f5 }) }; oper.g.visible = false; props.add(oper.g);
+      var ch = chock(); ch.visible = false; ch.rotation.y = Math.PI / 2; props.add(ch);
+      K.trucker = trucker; K.oper = oper; K.key = keyIcon(); K.ch = ch;
+      var CZ = p2l(0, 285).z, XL = Math.min(LANE + 1.0, halfW - 0.45), sg = C.x >= 0 ? 1 : -1;
+      var PARK = { x:-(halfW - 1.5), z:-3.4 };
+      var meetT = { x:C.x - 0.45, z:C.z + 0.2 }, meetO = { x:C.x + 0.2, z:C.z + 1.9 }, boxP = { x:C.x + 1.05, z:C.z - 0.75 };
+      var FZ = { x:C.x - sg * 2.2, z:CZ };                               /* autoelevador frente a la zona segura */
+      function door(){ return truckToRoot(1.75, TZ + truck.L + 1.5); }
+      function frontZ(){ return TZ + truck.L + 1.75; }                   /* eje delantero */
+      function chP(){ return { x:1.12, z:frontZ() + 0.72 }; }            /* rueda delantera, lado conductor */
+      function side(){ return { x:fl.x + Math.cos(fl.head) * 0.95, z:fl.z - Math.sin(fl.head) * 0.95 }; }
+      function dismount(){ fork.drv.visible = false; var s0 = side(); oper.g.position.set(s0.x, PLATE, s0.z); oper.g.rotation.y = fl.head; oper.g.visible = true; }
+      function mount(){ fork.drv.visible = true; oper.g.visible = false; }
+      function toZS(){ return fdrive(function(){ return [{ x:XL, z:-1.0 }, { x:XL, z:CZ }, FZ]; }, sg * Math.PI / 2); }
+      function zsToWheel(){ return fdrive(function(){ return [{ x:XL, z:CZ }, { x:LANE, z:frontZ() + 0.3 }]; }, Math.PI); }
+      function wheelToPark(){ return fdrive(function(){ return [{ x:LANE, z:LANE_Z }, PARK]; }, Math.PI / 2); }
+      function setChock(on){
+        return seq([
+          walk(oper, function(){ var c = chP(); return [side(), { x:c.x + 0.65, z:c.z }]; }, 1.4),
+          function(){ var c = chP(); oper.g.rotation.y = -Math.PI / 2; ch.position.set(c.x, PLATE, c.z); ch.visible = on; }, wait(0.8),
+          walk(oper, function(){ var c = chP(); return [{ x:c.x + 0.65, z:c.z }, side()]; }, 1.4)
+        ]);
+      }
+      K.door = door;
+      K.driverOff = function(){ return seq([
+        function(){ truck.drv.visible = false; var d = door(); trucker.g.position.set(d.x, PLATE, d.z); trucker.g.visible = true; holdKey(trucker.g, 2.15); },
+        walk(trucker, function(){ var d = door(); return [d, { x:XL, z:d.z - 0.4 }, { x:XL, z:CZ }, { x:C.x, z:CZ }, meetT]; }, 1.5),
+        face(trucker, function(){ return meetO; }) ]); };
+      K.takeKey = function(foc){ return seq([
+        foc('fork'), toZS(),
+        foc('oper'), function(){ dismount(); setStatus(tx('pide_llave')); },
+        walk(oper, function(){ return [side(), meetO]; }, 1.4), face(oper, function(){ return meetT; }),
+        wait(0.8), function(){ holdKey(oper.g, 2.15); setStatus(tx('entrega_llave')); }, wait(1.4),
+        function(){ setStatus(tx('guarda_llave')); },
+        walk(oper, function(){ return [meetO, { x:boxP.x, z:meetO.z }, { x:boxP.x, z:boxP.z + 0.5 }]; }, 1.2),
+        function(){ holdKey(props, 0); K.key.position.set(boxP.x, 2.2, boxP.z); }, wait(1.0),
+        walk(oper, function(){ return [{ x:boxP.x, z:boxP.z + 0.5 }, { x:boxP.x, z:meetO.z }, meetO, side()]; }, 1.4),
+        function(){ mount(); } ]); };
+      K.chockOn = function(foc){ return seq([
+        foc('fork'), zsToWheel(),
+        foc('oper'), function(){ dismount(); setStatus(tx('pone_traba')); }, setChock(true), function(){ mount(); } ]); };
+      K.giveKey = function(foc){ return seq([
+        foc('fork'), toZS(),
+        foc('oper'), function(){ dismount(); },
+        walk(oper, function(){ return [side(), meetO, { x:boxP.x, z:meetO.z }, { x:boxP.x, z:boxP.z + 0.5 }]; }, 1.4),
+        function(){ holdKey(oper.g, 2.15); setStatus(tx('saca_llave')); }, wait(0.7),
+        walk(oper, function(){ return [{ x:boxP.x, z:boxP.z + 0.5 }, { x:boxP.x, z:meetO.z }, meetO]; }, 1.2), face(oper, function(){ return meetT; }),
+        function(){ holdKey(trucker.g, 2.15); setStatus(tx('devuelve_llave')); }, wait(1.2),
+        walk(oper, function(){ return [meetO, side()]; }, 1.4), function(){ mount(); } ]); };
+      K.chockOff = function(foc){ return seq([
+        function(){ setStatus(tx('va_traba')); }, foc('fork'), zsToWheel(),
+        foc('oper'), function(){ dismount(); setStatus(tx('saca_traba')); }, setChock(false), function(){ mount(); } ]); };
+      K.release = function(foc){ return seq([
+        all([
+          wheelToPark(),
+          seq([foc('trucker'), function(){ setStatus(tx('chofer_vuelve')); },
+               walk(trucker, function(){ var d = door(); return [meetT, { x:C.x, z:CZ }, { x:XL, z:CZ }, { x:XL, z:d.z - 0.4 }, d]; }, 1.5)])
+        ]),
+        function(){ trucker.g.visible = false; holdKey(props, -50); truck.drv.visible = true; } ]); };
+      pk = K;
+      return K;
+    }
+
+    /* ---------- carga de chasis/semi con el procedimiento de zona segura ---------- */
+    var lp = null;
+    function noFoc(){ return function(){}; }
+    function loadCycle(){
+      var K = lp.kit;
+      return seq([
+        until(function(){ return truck.state === 'hold'; }),
+        function(){ lp.loaded = false; setStatus(tx('chofer_baja')); }, wait(0.5),
+        K.driverOff(),
+        function(){ setStatus(tx('ae_zona')); }, K.takeKey(noFoc),
+        function(){ setStatus(tx('a_ruedas')); }, K.chockOn(noFoc),
+        function(){ truck.state = 'docked'; setStatus(tx('traba_ok')); },
+        until(function(){ return lp.loaded; }),
+        function(){ setStatus(tx('vuelve_zona_carga')); }, K.giveKey(noFoc), K.chockOff(noFoc), K.release(noFoc),
+        wait(0.6),
+        function(){ truck.state = 'leaving'; truck.t = 0; setStatus(tx('sale_cargado')); }
+      ]);
+    }
+    function stopLoadProto(){
+      if(!lp) return;
+      root.remove(lp.props);
+      if(lp.kit.key.parent) lp.kit.key.parent.remove(lp.kit.key);
+      fork.drv.visible = true; if(truck && truck.drv) truck.drv.visible = true;
+      if(truck && (truck.state === 'hold' || truck.state === 'busy')) truck.state = 'docked';
+      if(pk === lp.kit) pk = null;
+      lp = null;
+    }
+    function startLoadProto(){
+      stopLoadProto();
+      if(job !== 'load' || circ || mode !== 'auto') return;
+      var z0 = nearestZS(), props = new THREE.Group(); root.add(props);
+      lp = { props:props, loaded:false };
+      lp.kit = mkKit(props, p2l(z0[0], z0[1]));
+      if(truck.state === 'docked') truck.state = 'hold';
+      lp.run = loadCycle();
+    }
+    function lpUpdate(dt){ if(lp && lp.run.update(dt)) lp.run = loadCycle(); }
 
     function fdrive(ptsFn, endHead){
       var started = false;
@@ -3112,37 +3251,14 @@ window.CIRCUITO_TEXTOS = {
       var vig = guard(p2l(171, 566), 0);
       var bIn = boom(p2l(309, 324.5), p2l(309, 310.5)), bOut = boom(p2l(289, 230.5), p2l(289, 244));
       var gdIn = guard(gIn, Math.PI), gdOut = guard(gOut, 0);
-      var C = p2l(1225, 295); safeZone(C);
-      var trucker = { g:minifig({ torso:0xc0392b, legs:0x1f3f7a, helmet:0x1f5fbf, vest:0xff7a1a }) }; trucker.g.visible = false; circ.props.add(trucker.g);
-      var oper = { g:minifig({ torso:0x2b2b2b, legs:0x2b2b2b, vest:0xff7a1a, helmet:0xf5f5f5 }) }; oper.g.visible = false; circ.props.add(oper.g);
-      circ.trucker = trucker; circ.oper = oper; circ.key = keyIcon();
-      var ch1 = chock(), ch2 = chock(); ch1.visible = ch2.visible = false; circ.props.add(ch1); circ.props.add(ch2);
-
-      var CZ = p2l(0, 285).z, XL = Math.min(LANE + 1.0, halfW - 0.45);
-      var PARK = { x:-(halfW - 1.5), z:-3.4 };
-      function door(){ var zc = TZ + truck.L + 0.25; return truckToRoot(1.75, zc + 1.25); }
-      var meetT = { x:C.x - 0.45, z:C.z + 0.2 }, meetO = { x:C.x + 0.2, z:C.z + 1.9 }, boxP = { x:C.x + 1.05, z:C.z - 0.75 };
-      var FZ = { x:C.x - 2.2, z:CZ };                                   /* autoelevador frente a la zona segura */
-      var chZ = TZ + 1.4 - 0.78, FCH = { x:LANE, z:chZ + 1.8 };         /* autoelevador junto a las ruedas traseras */
-      function side(){ return { x:fl.x + Math.cos(fl.head) * 0.95, z:fl.z - Math.sin(fl.head) * 0.95 }; }
-      function dismount(){ fork.drv.visible = false; var s = side(); oper.g.position.set(s.x, PLATE, s.z); oper.g.rotation.y = fl.head; oper.g.visible = true; }
-      function mount(){ fork.drv.visible = true; oper.g.visible = false; }
+      var K = mkKit(circ.props, p2l(1225, 295));
+      circ.trucker = K.trucker; circ.oper = K.oper; circ.key = K.key;
+      var door = K.door;
       function controlAt(guardFig, b){ return seq([wait(0.6), all([wave(guardFig, 2.2), seq([wait(0.8), boomMove(b, true)])])]); }
       function guardCheck(){
         var d0 = { x:vig.g.position.x, z:vig.g.position.z };
         var tgt = function(){ return truckToRoot(2.6, TZ + truck.L + 1.4); };
         return seq([walk(vig, function(){ return [d0, tgt()]; }, 1.6), face(vig, door), wave(vig, 2.4), walk(vig, function(){ return [tgt(), d0]; }, 1.6), function(){ vig.g.rotation.y = 0; }]);
-      }
-      function toZS(){ return fdrive(function(){ return [{ x:XL, z:-1.0 }, { x:XL, z:CZ }, FZ]; }, Math.PI / 2); }
-      function zsToChocks(){ return fdrive(function(){ return [{ x:XL, z:CZ }, { x:LANE, z:FCH.z + 2.0 }, FCH]; }, Math.PI); }
-      function chocksToPark(){ return fdrive(function(){ return [{ x:LANE, z:LANE_Z }, PARK]; }, Math.PI / 2); }
-      function placeChocks(on){
-        return seq([
-          walk(oper, function(){ return [side(), { x:1.75, z:chZ }]; }, 1.4), function(){ ch1.position.set(1.12, PLATE, chZ); ch1.visible = on; }, wait(0.6),
-          walk(oper, function(){ return [{ x:1.75, z:chZ }, { x:1.95, z:TZ - 0.45 }, { x:-1.95, z:TZ - 0.45 }, { x:-1.75, z:chZ }]; }, 1.6),
-          function(){ ch2.position.set(-1.12, PLATE, chZ); ch2.visible = on; }, wait(0.6),
-          walk(oper, function(){ return [{ x:-1.75, z:chZ }, { x:-1.95, z:TZ - 0.45 }, { x:1.95, z:TZ - 0.45 }, side()]; }, 1.6)
-        ]);
       }
 
       var tagTex = null;
@@ -3182,40 +3298,14 @@ window.CIRCUITO_TEXTOS = {
         step(4, function(){ return tx('estaciona'); }), drive(rRev, true, 3),
         function(){ truck.g.position.set(0, PLATE, 0); truck.g.rotation.y = 0; },
         wait(0.6),
-        step(5), focus('trucker'),
-        function(){ truck.drv.visible = false; var d = door(); trucker.g.position.set(d.x, PLATE, d.z); trucker.g.visible = true; holdKey(trucker.g, 2.15); },
-        walk(trucker, function(){ var d = door(); return [d, { x:XL, z:d.z - 0.4 }, { x:XL, z:CZ }, { x:C.x, z:CZ }, meetT]; }, 1.5),
-        face(trucker, function(){ return meetO; }),
-        step(6, function(){ return tx('ae_zona'); }), focus('fork'), toZS(),
-        focus('oper'), function(){ dismount(); setStatus(tx('pide_llave')); },
-        walk(oper, function(){ return [side(), meetO]; }, 1.4), face(oper, function(){ return meetT; }),
-        wait(0.8), function(){ holdKey(oper.g, 2.15); setStatus(tx('entrega_llave')); }, wait(1.4),
-        function(){ setStatus(tx('guarda_llave')); },
-        walk(oper, function(){ return [meetO, { x:boxP.x, z:meetO.z }, { x:boxP.x, z:boxP.z + 0.5 }]; }, 1.2),
-        function(){ holdKey(circ.props, 0); circ.key.position.set(boxP.x, 2.2, boxP.z); }, wait(1.0),
-        walk(oper, function(){ return [{ x:boxP.x, z:boxP.z + 0.5 }, { x:boxP.x, z:meetO.z }, meetO, { x:FZ.x, z:FZ.z - 0.95 }]; }, 1.4),
-        function(){ mount(); },
-        step(7, function(){ return tx('a_ruedas'); }), focus('fork'), zsToChocks(),
-        focus('oper'), function(){ dismount(); setStatus(tx('pone_traba')); },
-        placeChocks(true), function(){ mount(); },
+        step(5), focus('trucker'), K.driverOff(),
+        step(6, function(){ return tx('ae_zona'); }), K.takeKey(focus),
+        step(7, function(){ return tx('a_ruedas'); }), K.chockOn(focus),
         step(8), focus('dock'), function(){ truck.state = 'docked'; circ.loaded = false; },
         until(function(){ return circ.loaded; }),
         function(){ circ.side = labelSeq(); },
-        step(9, function(){ return tx('vuelve_zona'); }), focus('fork'), toZS(),
-        focus('oper'), function(){ dismount(); },
-        walk(oper, function(){ return [side(), meetO, { x:boxP.x, z:meetO.z }, { x:boxP.x, z:boxP.z + 0.5 }]; }, 1.4),
-        function(){ holdKey(oper.g, 2.15); setStatus(tx('saca_llave')); }, wait(0.7),
-        walk(oper, function(){ return [{ x:boxP.x, z:boxP.z + 0.5 }, { x:boxP.x, z:meetO.z }, meetO]; }, 1.2), face(oper, function(){ return meetT; }),
-        function(){ holdKey(trucker.g, 2.15); setStatus(tx('devuelve_llave')); }, wait(1.2),
-        walk(oper, function(){ return [meetO, { x:FZ.x, z:FZ.z - 0.95 }]; }, 1.4), function(){ mount(); },
-        function(){ setStatus(tx('va_traba')); }, focus('fork'), zsToChocks(),
-        focus('oper'), function(){ dismount(); setStatus(tx('saca_traba')); }, placeChocks(false), function(){ mount(); },
-        all([
-          chocksToPark(),
-          seq([focus('trucker'), function(){ setStatus(tx('chofer_vuelve')); },
-               walk(trucker, function(){ var d = door(); return [meetT, { x:C.x, z:CZ }, { x:XL, z:CZ }, { x:XL, z:d.z - 0.4 }, d]; }, 1.5)])
-        ]),
-        function(){ trucker.g.visible = false; holdKey(circ.props, -50); truck.drv.visible = true; truck.state = 'circuit'; }, wait(0.8),
+        step(9, function(){ return tx('vuelve_zona'); }), K.giveKey(focus), K.chockOff(focus), K.release(focus),
+        function(){ truck.state = 'circuit'; }, wait(0.8),
         step(10, function(){ return tx('egreso'); }), focus('truck'), drive(rOut1, false, 11),
         controlAt(gdOut, bOut),
         step(11), all([drive(rOut2, false, 12), seq([wait(4), boomMove(bOut, false)])]),
@@ -3231,11 +3321,13 @@ window.CIRCUITO_TEXTOS = {
       if(!circ) return;
       root.remove(circ.props);
       if(circ.key && circ.key.parent) circ.key.parent.remove(circ.key);
+      pk = null;
       fork.drv.visible = true;
       circ = null; job = 'load'; circSteps(); setStatus2('');
       sel.disabled = false; $('simMode').disabled = false;
       $('simCirc').textContent = '🚛 Circuito completo'; $('simCirc').classList.remove('active');
-      if(!quiet){ di = preDi; sel.value = di; resetSim(di); setSimCam('general'); }
+      di = preDi; sel.value = di;
+      if(!quiet){ resetSim(di); setSimCam('general'); }
     }
     function circUpdate(dt){
       if(!circ) return;
@@ -3261,11 +3353,11 @@ window.CIRCUITO_TEXTOS = {
     }
 
     /* ---------- editor de textos del circuito (solo el dueno, dentro de Claude) ---------- */
-    var TXLAB = { vigilancia:'Control de vigilancia', ingreso:'Gatera de ingreso', estaciona:'Estaciona en el dock', ae_zona:'Autoelevador va a la zona segura',
-      pide_llave:'Pide la llave', entrega_llave:'Entrega la llave', guarda_llave:'Guarda la llave', a_ruedas:'Va a las ruedas del semi', pone_traba:'Pone el traba ruedas',
+    var TXLAB = { chofer_baja:'Carga · el chofer baja', traba_ok:'Carga · traba ruedas puesto', vuelve_zona_carga:'Carga · vuelve a la zona segura', sale_cargado:'Carga · sale el camión', vigilancia:'Control de vigilancia', ingreso:'Gatera de ingreso', estaciona:'Estaciona en el dock', ae_zona:'Autoelevador va a la zona segura',
+      pide_llave:'Pide la llave', entrega_llave:'Entrega la llave', guarda_llave:'Guarda la llave', a_ruedas:'Va a la rueda delantera', pone_traba:'Pone el traba ruedas',
       descargando:'Descargando una paleta', al_staging:'Deja la paleta en staging', fin_descarga:'Termina la descarga', vuelve_zona:'Vuelve a la zona segura',
       saca_llave:'Saca la llave de la caja', devuelve_llave:'Devuelve la llave', va_traba:'Va a sacar el traba ruedas', saca_traba:'Saca el traba ruedas',
-      chofer_vuelve:'El chofer vuelve al semi', egreso:'Sale hacia la gatera de egreso', fin:'Fin del viaje',
+      chofer_vuelve:'El chofer vuelve al camión', egreso:'Sale hacia la gatera de egreso', fin:'Fin del viaje',
       etiq_llega:'Etiquetado · llega el operario', etiq:'Etiquetado · cada paleta', etiq_fin:'Etiquetado · termina' };
     var txDb = null;
     function curTexts(){ var o = {}; Object.keys(TXD).forEach(function(k){ o[k] = tx(k, { n:'{n}', total:'{total}', dock:'{dock}' }); }); return o; }
@@ -3344,6 +3436,7 @@ window.CIRCUITO_TEXTOS = {
       simOn = false; document.body.classList.remove('sim');
       restoreHidden(); root.visible = false;
       if(mode === 'manual') toggleMode();
+      stopLoadProto();
       camera.near = 4; camera.updateProjectionMatrix();
       goal.ty = 0; goHome(); dirty = true;
     }
@@ -3355,6 +3448,10 @@ window.CIRCUITO_TEXTOS = {
       $('simMode').textContent = man ? '⚙ Automático' : '🕹 Manejar yo';
       $('simMode').classList.toggle('active', man);
       $('simSpeed').disabled = man;
+      if(man){
+        stopLoadProto();
+        if(!inArea(fl.x, fl.z) || !allowed(fl.x, fl.z, fl.head, fl.h)){ fl.x = -(halfW - 1.5); fl.z = -3.4; fl.head = Math.PI / 2; }
+      } else if(simOn) startLoadProto();
       if(man){ setSimCam('seguir'); setStatus(fl.carry ? 'Tenés un pallet arriba · llevalo al camión' : 'Modo manual · agarrá un pallet del staging'); }
       else setStatus('Modo automático');
       updateCounter();
