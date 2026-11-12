@@ -1880,12 +1880,12 @@ window.CIRCUITO_TEXTOS = {
   var zcPanel = document.getElementById('zcPanel'), zcList = document.getElementById('zcList'), btnZC = document.getElementById('btnZC'), btnCirc = document.getElementById('btnCirc'), zcTitle = document.getElementById('zcTitle');
   var zcRows = {}, zcSecs = [];
   ZC_LAYERS.forEach(function(L){
-    if(L.sec){ var h = document.createElement('p'); h.className = 'zsec'; h.textContent = L.sec; h.dataset.grp = L.grp; zcList.appendChild(h); zcSecs.push(h); return; }
+    if(L.sec){ var h = document.createElement('p'); h.className = 'zsec'; named(h, L.sec); h.dataset.grp = L.grp; zcList.appendChild(h); zcSecs.push(h); return; }
     var b = document.createElement('button'); b.type = 'button'; b.className = 'zrow'; b.setAttribute('aria-pressed', 'false');
     var mk = document.createElement('span');
     if(L.icon){ mk.className = 'zic'; mk.innerHTML = ZSVG[L.icon]; }
     else { mk.className = L.block ? 'zsw zblk' : 'zsw'; mk.style.background = L.color; }
-    var nm = document.createElement('span'); nm.className = 'zname'; nm.textContent = L.name;
+    var nm = document.createElement('span'); nm.className = 'zname'; named(nm, L.name);
     var ck = document.createElement('span'); ck.className = 'zchk';
     b.appendChild(mk); b.appendChild(nm); b.appendChild(ck);
     b.addEventListener('click', function(){ ZC_ON[L.id] = !ZC_ON[L.id]; syncZRows(); zcRender(); });
