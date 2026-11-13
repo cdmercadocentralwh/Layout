@@ -367,7 +367,7 @@
     <ul id="estBody"></ul>
   </div>
   <div class="simcard evcard" id="evCard">
-    <p class="kicker">Simulacro de evacuación</p>
+    <p class="kicker" id="evKick">Simulacro de evacuación</p>
     <p class="simst" id="evStatus">Suena la sirena</p>
     <div class="simbar"><i id="evProg"></i></div>
     <p class="simcnt"><b id="evCnt">0</b> de <span id="evTot">89</span> personas en su punto de encuentro · <span id="evTime">0:00</span> min</p>
@@ -395,6 +395,7 @@
   <button type="button" class="simbig" id="simDispatch" hidden>Despachar camión ▸</button>
   <p class="evsay" id="evSay" hidden></p>
   <div class="simctl evctl">
+    <button type="button" id="evModo">Evacuación interna · 60 s ▸</button>
     <button type="button" id="evAgain">↻ Repetir</button>
     <button type="button" id="evPause">❚❚ Pausa</button>
     <button type="button" id="evSpeed">Vel 6x</button>
@@ -3542,7 +3543,7 @@ window.CIRCUITO_TEXTOS = {
       var BASE_TOTAL = 0, BASE_BRIG = 0; AREAS.forEach(function(a){ BASE_TOTAL += a[0]; BASE_BRIG += a[4]; });
       /* configuracion editable (boton Configurar): se guarda para todos si entra el admin */
       var DEF = {
-        personas:BASE_TOTAL, brigadistas:BASE_BRIG, sirenaTipo:'bomberos', sirenaSeg:0,
+        personas:BASE_TOTAL, brigadistas:BASE_BRIG, sirenaTipo:'bomberos', segInterna:60, segTotal:120,
         pe:PE.map(function(p){ return p[1] || ''; }),
         sectores:SECTORES.map(function(x){ return { nombre:x[0], pe:'' }; }),
         inicio:'Atención, atención. Se activó el plan de evacuación del CD Mercado Central. Dejen lo que están haciendo y diríjanse caminando, sin correr, al punto de encuentro más cercano. Sigan las indicaciones de los brigadistas.',
@@ -3555,7 +3556,8 @@ window.CIRCUITO_TEXTOS = {
         if(+d.personas >= 10 && +d.personas <= 400) CFG.personas = Math.round(+d.personas);
         if(+d.brigadistas >= 0 && +d.brigadistas <= 40) CFG.brigadistas = Math.round(+d.brigadistas);
         if(d.sirenaTipo === 'fija' || d.sirenaTipo === 'bomberos') CFG.sirenaTipo = d.sirenaTipo;
-        if(+d.sirenaSeg >= 0 && +d.sirenaSeg <= 3600) CFG.sirenaSeg = Math.round(+d.sirenaSeg);
+        if(+d.segInterna >= 5 && +d.segInterna <= 3600) CFG.segInterna = Math.round(+d.segInterna);
+        if(+d.segTotal >= 5 && +d.segTotal <= 3600) CFG.segTotal = Math.round(+d.segTotal);
         if(Array.isArray(d.pe)) d.pe.forEach(function(v, i){ if(i < CFG.pe.length && typeof v === 'string') CFG.pe[i] = v.slice(0, 50); });
         if(Array.isArray(d.sectores)) d.sectores.forEach(function(v, i){ if(i < CFG.sectores.length && v){ if(typeof v.nombre === 'string' && v.nombre.trim()) CFG.sectores[i].nombre = v.nombre.slice(0, 60); if(/^0[1-5]$/.test(v.pe || '')) CFG.sectores[i].pe = v.pe; } });
         if(typeof d.inicio === 'string' && d.inicio.trim()) CFG.inicio = d.inicio.slice(0, 400);
@@ -3564,9 +3566,13 @@ window.CIRCUITO_TEXTOS = {
       try { mergeCfg(JSON.parse(localStorage.getItem('evacCfg') || 'null')); } catch(e){}
       function peNombre(i){ return CFG.pe[i] || ''; }
       function peVoz(i){ var n = ['uno', 'dos', 'tres', 'cuatro', 'cinco'][i] || String(i + 1); return 'el punto de encuentro ' + n + (peNombre(i) ? ', ' + peNombre(i) : ''); }
+      /* 60 s de sirena = evacuacion a los puntos de encuentro internos (01, 02, 03)
+         120 s de sirena = evacuacion total, todos fuera del CD (puntos 04 y 05) */
+      var modo = 'interna';
+      function permitidos(){ return modo === 'total' ? [3, 4] : [0, 1, 2]; }
       var TOTAL = BASE_TOTAL;
       var root = new THREE.Group(); root.visible = false; scene.add(root);
-      var people = [], brig = [], peCount = [], t = 0, speed = 6, done = false, paused = false;
+      var peMk = [], people = [], brig = [], peCount = [], t = 0, speed = 6, done = false, paused = false;
       var tagBox = document.createElement('div'); tagBox.id = 'evacTags'; document.body.appendChild(tagBox);
       var peTags = PE.map(function(p, i){ var d = document.createElement('div'); d.className = 'evacpe'; d.hidden = true; d.addEventListener('pointerdown', function(){ verPE(i); }); tagBox.appendChild(d); return d; });
       function verPE(i){
@@ -3585,12 +3591,13 @@ window.CIRCUITO_TEXTOS = {
         disc.position.y = 0.05; g.add(disc);
         box(0.18, 3.2, 0.18, 0xdddddd, 0, 1.6, 0, g);
         box(1.6, 1.1, 0.08, 0x1E8E4A, 0, 3.0, 0, g);
-        g.position.set(w.x, 0.08, w.z); root.add(g);
+        g.position.set(w.x, 0.08, w.z); root.add(g); peMk.push(g);
       });
 
       function nearestPE(px, py){
         var bi = 0, bd = 1e9;
-        PE.forEach(function(p, i){ var d = Math.hypot(p[2] - px, p[3] - py); if(d < bd){ bd = d; bi = i; } });
+        var ok = permitidos(); bi = ok[0];
+        PE.forEach(function(p, i){ if(ok.indexOf(i) < 0) return; var d = Math.hypot(p[2] - px, p[3] - py); if(d < bd){ bd = d; bi = i; } });
         return bi;
       }
       /* salida mas cercana y punto de encuentro, desde un punto de un area */
@@ -3613,7 +3620,7 @@ window.CIRCUITO_TEXTOS = {
         var best = -1, bd = 1e9;
         SECTORES.forEach(function(x, i){ if(x[3] !== ai) return; var d = Math.hypot(x[1] - px, x[2] - py); if(d < bd){ bd = d; best = i; } });
         var f = best >= 0 ? CFG.sectores[best].pe : '';
-        return f ? (+f - 1) : def;
+        return f && permitidos().indexOf(+f - 1) >= 0 ? (+f - 1) : def;
       }
       function peSpot(i){ var p = PE[i]; return [p[2] + rr(-9, 9), p[3] + rr(-9, 9)]; }
 
@@ -3638,21 +3645,26 @@ window.CIRCUITO_TEXTOS = {
           for(var i = 0; i < cn[ai]; i++){
             var isB = i < bc[ai], px = rr(r[0], r[2]), py = rr(r[1], r[3]), w = W(px, py);
             var g = minifig(LOOK[isB ? 'br' : a[2]]()); g.position.set(w.x, 0.08, w.z); g.rotation.y = rr(0, 6.28); root.add(g);
-            var p = { g:g, area:ai, i:0, v:rr(1.2, 1.6), ph:rr(0, 6), arrived:false, role:isB ? 'b' : (a[4] && Math.random() < 0.5 ? 'w' : 'n'), leader:null, slot:0 };
+            var p = { g:g, area:ai, i:0, v:rr(1.2, 1.6), ph:rr(0, 6), arrived:false, role:isB ? 'b' : 'n', leader:null, slot:0 };
             if(p.role === 'b'){
               /* barrido: recorre su sector juntando gente y despues sale */
               var sweep = [], n = a[0] > 20 ? 3 : 2;
               for(var k = 0; k < n; k++) sweep.push([rr(r[0], r[2]), rr(r[1], r[3])]);
               var ep = exitPath(sweep[n - 1][0], sweep[n - 1][1], a); ep.pe = fixedPE(px, py, ai, ep.pe);
-              p.pts = sweep.concat(ep.pts, [peSpot(ep.pe)]); p.pe = ep.pe; p.v = 1.25; p.delay = rr(1, 3); p.group = 0;
+              p.pts = sweep.concat(ep.pts, [peSpot(ep.pe)]); p.pe = ep.pe; p.v = 1.35; p.delay = rr(0.3, 1); p.group = 0;
               brig.push(p);
             } else {
               var e2 = exitPath(px, py, a); e2.pe = fixedPE(px, py, ai, e2.pe);
-              p.pts = e2.pts.concat([peSpot(e2.pe)]); p.pe = e2.pe; p.delay = p.role === 'w' ? 1e9 : rr(1, 8);
+              p.pts = e2.pts.concat([peSpot(e2.pe)]); p.pe = e2.pe; p.delay = rr(0.5, 2.5);
             }
             people.push(p);
           }
         });
+        peMk.forEach(function(g, i){ g.visible = permitidos().indexOf(i) >= 0; });
+        $('evModo').textContent = modo === 'total' ? 'Evacuación total · ' + CFG.segTotal + ' s ▸' : 'Evacuación interna · ' + CFG.segInterna + ' s ▸';
+        $('evModo').classList.toggle('active', modo === 'total');
+        $('evKick').textContent = modo === 'total' ? 'Simulacro · evacuación total (fuera del CD)' : 'Simulacro · evacuación interna';
+        lastList = '';
         t = 0; done = false; follow = null; selPE = -1; paintPanel();
       }
 
@@ -3684,7 +3696,7 @@ window.CIRCUITO_TEXTOS = {
           o1.frequency.value = 360; o2.frequency.value = 360; o1.start(); o2.start(); cyc();
           sirTimer = setInterval(cyc, 7400);
           sir = { o:[o1, o2], g:g };
-          clearTimeout(sirStop); if(CFG.sirenaSeg > 0) sirStop = setTimeout(sirenOff, CFG.sirenaSeg * 1000);
+          clearTimeout(sirStop); sirStop = setTimeout(sirenOff, (modo === 'total' ? CFG.segTotal : CFG.segInterna) * 1000);
         } catch(e){ sir = null; }
       }
       function sirenVol(v){ if(sir && ac) try { sir.g.gain.setTargetAtTime(v, ac.currentTime, 0.25); } catch(e){} }
@@ -3709,10 +3721,14 @@ window.CIRCUITO_TEXTOS = {
       }
       if(window.speechSynthesis){ voz = pickVoice(); speechSynthesis.onvoiceschanged = function(){ voz = pickVoice(); }; }
       function mensajes(){
-        var L = [{ txt:CFG.inicio, sub:CFG.inicio }];
+        var seg = modo === 'total' ? CFG.segTotal : CFG.segInterna;
+        var aviso = modo === 'total'
+          ? 'La sirena sonó ' + seg + ' segundos: evacuación total. Todo el personal debe salir del CD y dirigirse a los puntos de encuentro cuatro y cinco, afuera.'
+          : 'La sirena sonó ' + seg + ' segundos: evacuación a los puntos de encuentro internos del CD.';
+        var L = [{ txt:CFG.inicio + ' ' + aviso, sub:(modo === 'total' ? 'Sirena ' + seg + ' s · EVACUACIÓN TOTAL · todos fuera del CD a los PE 04 y 05' : 'Sirena ' + seg + ' s · evacuación a los puntos de encuentro internos (PE 01, 02 y 03)') }];
         SECTORES.forEach(function(s, si){
-          var e = exitPath(s[1], s[2], AREAS[s[3]]), pi = CFG.sectores[si].pe ? +CFG.sectores[si].pe - 1 : e.pe, nm = CFG.sectores[si].nombre;
-          L.push({ txt:'Personal que se encuentra en ' + nm + ': su punto de encuentro ' + (CFG.sectores[si].pe ? 'es ' : 'más cercano es ') + peVoz(pi) + '.',
+          var e = exitPath(s[1], s[2], AREAS[s[3]]), fx = fixedPE(s[1], s[2], s[3], -1), pi = fx >= 0 ? fx : e.pe, nm = CFG.sectores[si].nombre;
+          L.push({ txt:'Personal que se encuentra en ' + nm + ': su punto de encuentro ' + (fx >= 0 ? 'es ' : 'más cercano es ') + peVoz(pi) + '.',
                    sub:nm.charAt(0).toUpperCase() + nm.slice(1) + '  →  PE ' + PE[pi][0] + (peNombre(pi) ? ' · ' + peNombre(pi) : '') });
         });
         return L;
@@ -3740,7 +3756,7 @@ window.CIRCUITO_TEXTOS = {
       var CAMS = ['general', 'atras', 'arriba', 'brigadista'], CAMN = { general:'general', atras:'detrás de la persona', arriba:'desde arriba', brigadista:'brigadista' };
       var camMode = 'general', follow = null, followWait = 0;
       function pickFollow(onlyB){
-        var L = (onlyB ? brig : people).filter(function(p){ return !p.arrived && (onlyB || p.role !== 'w' || p.leader); });
+        var L = (onlyB ? brig : people).filter(function(p){ return !p.arrived; });
         if(!L.length) L = (onlyB ? brig : people).filter(function(p){ return !p.arrived; });
         follow = L.length ? L[(Math.random() * L.length) | 0] : null; followWait = 0;
       }
@@ -3759,7 +3775,7 @@ window.CIRCUITO_TEXTOS = {
         if(!follow) return;
         var g = follow.g, rot = g.rotation.y;
         goal.tx = g.position.x; goal.tz = g.position.z;
-        if(camMode === 'atras'){ goal.ty = 1.3; goal.r = 9; goal.phi = 1.15; goal.theta = nearAng2(goal.theta, rot + Math.PI); }
+        if(camMode === 'atras'){ goal.ty = 1.3; goal.r = 12; goal.phi = 0.85; goal.theta = nearAng2(goal.theta, rot + Math.PI); }
         if(camMode === 'arriba'){ goal.ty = 0.5; goal.r = 26; goal.phi = 0.12; }
         if(camMode === 'brigadista'){ goal.ty = 1.2; goal.r = 15; goal.phi = 1.0; goal.theta = nearAng2(goal.theta, rot + Math.PI * 0.7); }
         var v = new THREE.Vector3(g.position.x, 2.6, g.position.z).project(camera);
@@ -3773,8 +3789,7 @@ window.CIRCUITO_TEXTOS = {
         var c = PE.map(function(){ return { va:0, espera:0 }; });
         people.forEach(function(p){
           if(p.arrived) return;
-          if(p.role === 'w' && !p.leader) c[p.pe].espera++;
-          else if(t >= p.delay || p.leader) c[p.pe].va++;
+          if(t >= p.delay || p.leader) c[p.pe].va++;
           else c[p.pe].espera++;
         });
         return c;
@@ -3785,13 +3800,14 @@ window.CIRCUITO_TEXTOS = {
         $('evCnt').textContent = n; $('evTot').textContent = TOTAL; $('evTime').textContent = fmt(t);
         $('evProg').style.width = (n / TOTAL * 100) + '%';
         var lh = '<li class="evhead"><i>Punto de encuentro</i><span>Llegaron</span><span>En camino</span></li>' + PE.map(function(p, i){
-          return '<li data-pe="' + i + '"' + (selPE === i ? ' class="on"' : '') + '><i><b>PE ' + p[0] + '</b>' + (peNombre(i) ? ' · ' + peNombre(i) : '') + '</i><span>' + peCount[i] + '</span><span>' + cm[i].va + (cm[i].espera ? ' <small>+' + cm[i].espera + ' esperan</small>' : '') + '</span></li>'; }).join('');
+          if(permitidos().indexOf(i) < 0) return '';
+          return '<li data-pe="' + i + '"' + (selPE === i ? ' class="on"' : '') + '><i><b>PE ' + p[0] + '</b>' + (peNombre(i) ? ' · ' + peNombre(i) : '') + '</i><span>' + peCount[i] + '</span><span>' + cm[i].va + (cm[i].espera ? ' <small>+' + cm[i].espera + ' saliendo</small>' : '') + '</span></li>'; }).join('');
         if(lh !== lastList){ lastList = lh; $('evList').innerHTML = lh; }
         if(selPE >= 0){ var q = cm[selPE];
           $('evDet').hidden = false;
-          $('evDet').innerHTML = '<b>PE ' + PE[selPE][0] + (peNombre(selPE) ? ' · ' + peNombre(selPE) : '') + '</b><br>' + peCount[selPE] + ' llegaron · ' + q.va + ' en camino' + (q.espera ? ' · ' + q.espera + ' por salir o esperando al brigadista' : '') + ' · total ' + (peCount[selPE] + q.va + q.espera);
+          $('evDet').innerHTML = '<b>PE ' + PE[selPE][0] + (peNombre(selPE) ? ' · ' + peNombre(selPE) : '') + '</b><br>' + peCount[selPE] + ' llegaron · ' + q.va + ' en camino' + (q.espera ? ' · ' + q.espera + ' dejando su tarea' : '') + ' · total ' + (peCount[selPE] + q.va + q.espera);
         } else $('evDet').hidden = true;
-        $('evStatus').textContent = done ? 'Evacuación completa · todos en su punto de encuentro' : (t < 3 ? 'Suena la sirena · dejar la tarea y salir caminando' : 'Evacuando · los brigadistas (gorra roja) van juntando a la gente');
+        $('evStatus').textContent = done ? (modo === 'total' ? 'Evacuación total completa · todos fuera del CD' : 'Evacuación completa · todos en su punto de encuentro') : (t < 3 ? 'Suena la sirena · dejar la tarea y salir caminando' : 'Evacuando · los brigadistas (gorra roja) recorren su sector y llevan a la gente que cruzan');
         PE.forEach(function(p, i){ peTags[i].innerHTML = 'PE ' + p[0] + ' · ' + peCount[i] + ' ✓' + (cm[i].va ? ' <small>· ' + cm[i].va + ' en camino</small>' : ''); peTags[i].classList.toggle('on', selPE === i); });
       }
 
@@ -3811,18 +3827,16 @@ window.CIRCUITO_TEXTOS = {
         people.forEach(function(p){
           if(p.arrived) return;
           moving++;
-          if(p.role === 'w' && !p.leader){
-            /* espera hasta que pase un brigadista de su sector (si nadie pasa, sale solo) */
+          if(t < p.delay) return;
+          /* ya salio caminando; si se cruza con el brigadista de su sector, se suma a su grupo y lo sigue */
+          if(p.role === 'n' && !p.leader && !p.final){
             for(var k = 0; k < brig.length; k++){
               var b = brig[k];
-              if(b.area === p.area && !b.arrived && t > b.delay && Math.hypot(b.g.position.x - p.g.position.x, b.g.position.z - p.g.position.z) < 16){
+              if(b.area === p.area && !b.arrived && b.group < 10 && Math.hypot(b.g.position.x - p.g.position.x, b.g.position.z - p.g.position.z) < 9){
                 p.leader = b; p.slot = ++b.group; p.pe = b.pe; break;
               }
             }
-            if(!p.leader && t > 70){ p.role = 'n'; p.delay = t; }
-            return;
           }
-          if(t < p.delay) return;
           if(p.leader && !p.leader.arrived){
             var L = p.leader.g, f = L.rotation.y, back = 1.4 + Math.floor((p.slot - 1) / 2) * 1.0, side = ((p.slot - 1) % 2 ? 0.7 : -0.7);
             var tx = L.position.x - Math.sin(f) * back + Math.cos(f) * side, tz = L.position.z - Math.cos(f) * back - Math.sin(f) * side;
@@ -3838,7 +3852,7 @@ window.CIRCUITO_TEXTOS = {
         PE.forEach(function(p, i){
           var w = W(p[2], p[3]); v.set(w.x, 5, w.z).project(camera);
           var el = peTags[i];
-          if(v.z > 1 || v.z < -1){ el.hidden = true; return; }
+          if(v.z > 1 || v.z < -1 || permitidos().indexOf(i) < 0){ el.hidden = true; return; }
           el.hidden = false; el.style.transform = 'translate(' + ((v.x + 1) / 2 * Wd) + 'px,' + ((1 - v.y) / 2 * Hd) + 'px) translate(-50%,-100%)';
         });
         camUpdate(rdt);
@@ -3851,7 +3865,7 @@ window.CIRCUITO_TEXTOS = {
         if(typeof setActive === 'function') setActive(null);
         if(planMode) setPlan(false);
         setSpin(false);
-        evacOn = true; evacUpdate = evacUpdateFn; document.body.classList.add('evac');
+        evacOn = true; evacUpdate = evacUpdateFn; document.body.classList.add('evac'); modo = 'interna';
         root.visible = true; spawn(); sirenOn(); vozStart(); setCam('general');
       }
       function exitEvac(){
@@ -3862,6 +3876,7 @@ window.CIRCUITO_TEXTOS = {
       }
       $('btnEvac').addEventListener('click', enterEvac);
       $('evExit').addEventListener('click', exitEvac);
+      $('evModo').addEventListener('click', function(){ modo = modo === 'total' ? 'interna' : 'total'; spawn(); if(window.speechSynthesis) speechSynthesis.cancel(); vozStart(); sirenOff(); sirenOn(); if(camMode !== 'general') pickFollow(camMode === 'brigadista'); });
       $('evList').addEventListener('pointerdown', function(e){ var li = e.target.closest('li[data-pe]'); if(li) verPE(+li.getAttribute('data-pe')); });
       $('evAgain').addEventListener('click', function(){ spawn(); if(window.speechSynthesis) speechSynthesis.cancel(); vozStart(); sirenOn(); if(camMode !== 'general') pickFollow(camMode === 'brigadista'); });
       $('evPause').addEventListener('click', function(){ paused = !paused; this.textContent = paused ? '▶ Seguir' : '❚❚ Pausa'; this.classList.toggle('active', paused); });
@@ -3874,17 +3889,18 @@ window.CIRCUITO_TEXTOS = {
 
       /* ---------- panel Configurar ---------- */
       function esc(x){ return String(x).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
-      function peOpts(sel){ return '<option value="">Más cercano</option>' + PE.map(function(p, i){ return '<option value="' + p[0] + '"' + (sel === p[0] ? ' selected' : '') + '>PE ' + p[0] + (peNombre(i) ? ' · ' + esc(peNombre(i)) : '') + '</option>'; }).join(''); }
+      function peOpts(sel){ return '<option value="">Más cercano</option>' + PE.map(function(p, i){ if(i > 2) return ''; return '<option value="' + p[0] + '"' + (sel === p[0] ? ' selected' : '') + '>PE ' + p[0] + (peNombre(i) ? ' · ' + esc(peNombre(i)) : '') + '</option>'; }).join(''); }
       function drawCfg(){
         var h = '<p class="simtxsec">Personas</p>'
           + '<label class="simtxrow">Cantidad de personas<input type="number" id="cfPer" min="10" max="400" value="' + CFG.personas + '"></label>'
           + '<label class="simtxrow">De esas, brigadistas (gorra roja)<input type="number" id="cfBri" min="0" max="40" value="' + CFG.brigadistas + '"></label>'
           + '<p class="simtxsec">Sirena</p>'
           + '<label class="simtxrow">Sonido<select id="cfTipo"><option value="bomberos"' + (CFG.sirenaTipo === 'bomberos' ? ' selected' : '') + '>Bomberos (sube y baja)</option><option value="fija"' + (CFG.sirenaTipo === 'fija' ? ' selected' : '') + '>Fija (tono continuo)</option></select></label>'
-          + '<label class="simtxrow">Cuánto suena, en segundos (0 = hasta salir del simulacro)<input type="number" id="cfSeg" min="0" max="3600" value="' + CFG.sirenaSeg + '"></label>'
+          + '<label class="simtxrow">Segundos de sirena · evacuación interna (PE 01, 02 y 03)<input type="number" id="cfSegI" min="5" max="3600" value="' + CFG.segInterna + '"></label>'
+          + '<label class="simtxrow">Segundos de sirena · evacuación total, fuera del CD (PE 04 y 05)<input type="number" id="cfSegT" min="5" max="3600" value="' + CFG.segTotal + '"></label>'
           + '<p class="simtxsec">Puntos de encuentro</p>'
           + PE.map(function(p, i){ return '<label class="simtxrow">Nombre del PE ' + p[0] + '<input data-pe="' + i + '" maxlength="50" value="' + esc(CFG.pe[i]) + '"></label>'; }).join('')
-          + '<p class="simtxsec">Sectores · cómo los nombra la voz y a qué punto van</p>'
+          + '<p class="simtxsec">Sectores · cómo los nombra la voz y a qué punto van en la evacuación interna</p>'
           + SECTORES.map(function(x, i){ return '<div class="simtxrow evcfrow"><input data-sn="' + i + '" maxlength="60" value="' + esc(CFG.sectores[i].nombre) + '"><select data-sp="' + i + '">' + peOpts(CFG.sectores[i].pe) + '</select></div>'; }).join('')
           + '<p class="simtxsec">Mensajes de la voz</p>'
           + '<label class="simtxrow">Al empezar<textarea id="cfIni" rows="4" maxlength="400">' + esc(CFG.inicio) + '</textarea></label>'
@@ -3892,7 +3908,7 @@ window.CIRCUITO_TEXTOS = {
         $('evCfgList').innerHTML = h;
       }
       function readCfg(){
-        var d = { personas:+$('cfPer').value, brigadistas:+$('cfBri').value, sirenaTipo:$('cfTipo').value, sirenaSeg:+$('cfSeg').value,
+        var d = { personas:+$('cfPer').value, brigadistas:+$('cfBri').value, sirenaTipo:$('cfTipo').value, segInterna:+$('cfSegI').value, segTotal:+$('cfSegT').value,
           pe:PE.map(function(p, i){ return document.querySelector('[data-pe="' + i + '"]').value.trim(); }),
           sectores:SECTORES.map(function(x, i){ return { nombre:document.querySelector('[data-sn="' + i + '"]').value.trim(), pe:document.querySelector('[data-sp="' + i + '"]').value }; }),
           inicio:$('cfIni').value.trim(), fin:$('cfFin').value.trim() };
