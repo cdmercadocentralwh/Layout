@@ -3909,8 +3909,8 @@ window.CIRCUITO_TEXTOS = {
       }
       function readCfg(){
         var d = { personas:+$('cfPer').value, brigadistas:+$('cfBri').value, sirenaTipo:$('cfTipo').value, segInterna:+$('cfSegI').value, segTotal:+$('cfSegT').value,
-          pe:PE.map(function(p, i){ return document.querySelector('[data-pe="' + i + '"]').value.trim(); }),
-          sectores:SECTORES.map(function(x, i){ return { nombre:document.querySelector('[data-sn="' + i + '"]').value.trim(), pe:document.querySelector('[data-sp="' + i + '"]').value }; }),
+          pe:PE.map(function(p, i){ return $('evCfgList').querySelector('[data-pe="' + i + '"]').value.trim(); }),
+          sectores:SECTORES.map(function(x, i){ return { nombre:$('evCfgList').querySelector('[data-sn="' + i + '"]').value.trim(), pe:$('evCfgList').querySelector('[data-sp="' + i + '"]').value }; }),
           inicio:$('cfIni').value.trim(), fin:$('cfFin').value.trim() };
         if(d.brigadistas > d.personas) d.brigadistas = d.personas;
         return d;
