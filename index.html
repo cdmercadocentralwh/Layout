@@ -1469,7 +1469,7 @@ window.CIRCUITO_TEXTOS = {
       post(px, py0, 6.5, 0.45, STEEL); post(px, py1, 6.5, 0.45, STEEL);
       solid.add(X(px), 6.5, (Z(py0) + Z(py1)) / 2, 0.6, 0.7, (py1 - py0) * S + 0.6, 0, 0xe9c33a);
     }
-    gantry(460, 716, 772); gantry(1109, 716, 772); gantry(1148, 224, 270);
+    /* pasacalles quitados: no existen en el CD */
     [600, 640, 760, 800, 840, 960, 1000, 1180, 1300].forEach(function(px){ truck(px, 724, 0, 'semi'); });
 
     solid.done(); paint.done(); canopy.done();
