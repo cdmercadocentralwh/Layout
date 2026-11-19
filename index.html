@@ -1196,15 +1196,42 @@ window.CIRCUITO_TEXTOS = {
 
     /* Area de picking de oeste a este: B, canchas Lata y 2000, LY, layers 2000 y litro (calle en el medio), L,
        canchas litro y 1500, K, layer 500/1500, M, cancha 500 y cancha MKTP con barriles */
-    [['Cancha Lata','c',[207,510,300,930]],
-     ['Cancha 2000','c',[308,510,398,930]],
+    /* Canchas con sus pasillos a lo largo (4º dato = paletas de profundidad de cada fila, con un pasillo entre filas):
+       Lata: 3 | pasillo | 2 | pasillo | 3.  Litro y 500: 2 | pasillo | 3 | pasillo | 2.  2000 y 1500: 2 | pasillo | 2. */
+    function cancha(r, filas){
+      /* El resto del ancho de la cancha queda para los pasillos. */
+      var nPas = filas.length - 1;
+      var p = 1.6, sz = p * 0.86, x0 = X(r[0]) + 0.3, x1 = X(r[2]) - 0.3, z0 = Z(r[1]) + 0.3, z1 = Z(r[3]) - 0.3;
+      var ocup = filas.reduce(function(a, b){ return a + b; }, 0) * p, ap = (x1 - x0 - ocup) / nPas;
+      var nz = Math.max(1, Math.floor((z1 - z0) / p)), oz = z0 + ((z1 - z0) - nz * p) / 2 + p / 2;
+      function px(x){ return x / S + CX; }
+      var x = x0;
+      filas.forEach(function(prof, f){
+        for(var c = 0; c < prof; c++){
+          var cx = x + c * p + p / 2;
+          for(var j = 0; j < nz; j++){
+            if(rnd() > 0.85) continue;
+            solid.add(cx, 0.1 + 1.45 / 2, oz + j * p, sz, 1.45, sz, 0, pick(PAL_PT));
+          }
+        }
+        x += prof * p;
+        if(f < nPas){
+          line(px(x + 0.15), r[1] + 1, px(x + 0.15), r[3] - 1, 0.14, 0xf2c200);       /* borde amarillo del pasillo */
+          line(px(x + ap - 0.15), r[1] + 1, px(x + ap - 0.15), r[3] - 1, 0.14, 0xf2c200);
+          x += ap;
+        }
+      });
+      outline(r, 0.16, 0xd4232b);
+    }
+    [['Cancha Lata','c',[207,510,322,930],[3,2,3]],
+     ['Cancha 2000','c',[330,510,398,930],[2,2]],
      ['Layer 2000','l',[484,510,560,930]],
      ['Layer litro','l',[584,510,657,930]],
-     ['Cancha litro','c',[722,510,817,900]],
-     ['Cancha 1500','c',[822,510,917,900]],
+     ['Cancha litro','c',[722,510,840,900],[2,3,2]],
+     ['Cancha 1500','c',[848,510,917,900],[2,2]],
      ['Layer 500/1500','l',[954,510,1045,900]],
-     ['Cancha 500','c',[1078,510,1260,900]]]
-      .forEach(function(c){ var r = PR(c[2]); if(c[1] === 'l'){ layerZone(r); return; } pallets(r, { fill:0.8, min:1, max:1, pal:PAL_PT }); outline(r, 0.16, 0xd4232b); });
+     ['Cancha 500','c',[1078,510,1260,900],[2,3,2]]]
+      .forEach(function(c){ var r = PR(c[2]); if(c[1] === 'l'){ layerZone(r); return; } cancha(r, c[3]); });
 
     /* Rack junto a la ultima cancha */
     /* Despues de la ultima cancha (500): cancha MKTP con barriles, rack, pasillo, rack enfrente, y despues la estiba F */
