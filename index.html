@@ -332,6 +332,21 @@ html.gate-lock #gate-out{display:none}
   .evlist i{font-style:normal;color:var(--dim);}
   .evleg{margin:8px 0 0;font-family:var(--f-mono);font-size:10.5px;color:var(--dim);display:flex;align-items:center;gap:6px;}
   .evdot{width:10px;height:10px;border-radius:50%;background:#d32f2f;box-shadow:0 0 0 1px #fff;}
+  .evbrig{display:none;position:absolute;left:16px;right:16px;bottom:calc(70px + env(safe-area-inset-bottom,0px));background:rgba(12,15,23,.9);border:1px solid #d32f2f;border-radius:2px;pointer-events:auto;padding:6px 8px 8px;}
+  body.evac .evbrig{display:block;}
+  .evbrig-h{display:flex;align-items:center;gap:10px;font-family:var(--f-mono);font-size:10.5px;color:var(--dim);margin-bottom:6px;}
+  .evbrig-h b{color:#ff6b6b;letter-spacing:.08em;text-transform:uppercase;font-size:11px;}
+  .evbrig-h > span{flex:1;min-width:0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+  .evbrig-h .evdot{display:inline-block;}
+  .evbrig.min .evbrig-l{display:none;} .evbrig.min .evbrig-h{margin-bottom:0;}
+  .evbrig-l{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin;}
+  .evchip{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:5px 9px 5px 22px;position:relative;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:2px;color:var(--text);font:inherit;cursor:default;text-align:left;}
+  .evchip i{position:absolute;left:8px;top:9px;width:8px;height:8px;border-radius:50%;background:#5b6475;}
+  .evchip b{font-size:12px;font-weight:600;white-space:nowrap;}
+  .evchip small{font-family:var(--f-mono);font-size:9.5px;color:var(--dim);white-space:nowrap;}
+  .evchip.act{border-color:#d32f2f;background:rgba(211,47,47,.16);cursor:pointer;}
+  .evchip.act i{background:#d32f2f;box-shadow:0 0 0 1px #fff;}
+  .evchip.act:hover{background:rgba(211,47,47,.32);}
   .evsay{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:calc(120px + env(safe-area-inset-bottom,0px));width:min(720px,calc(100% - 32px));margin:0;padding:10px 14px;background:rgba(12,15,23,.9);border:1px solid #e53935;border-radius:2px;color:#fff;font-size:15px;line-height:1.4;text-align:center;pointer-events:none;}
   body.evac .evsay:not([hidden]){display:block;}
   .evacfol{position:absolute;left:0;top:0;white-space:nowrap;background:#d32f2f;color:#fff;border-radius:2px;padding:2px 7px;font-family:var(--f-mono);font-size:11px;font-weight:600;}
@@ -454,6 +469,10 @@ html.gate-lock #gate-out{display:none}
   </div>
   <button type="button" class="simbig" id="simDispatch" hidden>Despachar camión ▸</button>
   <p class="evsay" id="evSay" hidden></p>
+  <div class="evbrig" id="evBrig">
+    <div class="evbrig-h"><b>Brigada 2026</b><span><span id="evBrigN">0</span> brigadistas · <i class="evdot"></i> en el simulacro (tocá para seguirlo)</span><button type="button" class="chip" id="evBrigHide">Ocultar</button></div>
+    <div class="evbrig-l" id="evBrigList"></div>
+  </div>
   <div class="simctl evctl">
     <button type="button" id="evModo">Evacuación interna · 60 s ▸</button>
     <button type="button" id="evAgain">↻ Repetir</button>
@@ -3607,7 +3626,8 @@ window.CIRCUITO_TEXTOS = {
         pe:PE.map(function(p){ return p[1] || ''; }),
         sectores:SECTORES.map(function(x){ return { nombre:x[0], pe:'' }; }),
         inicio:'Atención, atención. Se activó el plan de evacuación del CD Mercado Central. Dejen lo que están haciendo y diríjanse caminando, sin correr, al punto de encuentro más cercano. Sigan las indicaciones de los brigadistas.',
-        fin:'Evacuación completa. Todo el personal se encuentra en los puntos de encuentro. Brigadistas, realicen el conteo de su sector.'
+        fin:'Evacuación completa. Todo el personal se encuentra en los puntos de encuentro. Brigadistas, realicen el conteo de su sector.',
+        brigada:"Dotta Maria Belen Ruth - HSMA\nArjona Stella - SERVICIO MEDICO\nBarboza Hernan - OL (Levon)\nBarrios Javier Cristian - EXPEDICION\nBasualdo Claudia - SERVICIO MEDICO\nBlanco Alejandro - PRELIQUIDACION\nCerrudo Paula - OL (TOL)\nCorarle Julio - OL\nCuesta Romina - OL (RDV)\nRodriguez Dana - SERVICIO MEDICO\nDodero Mena Federico - WH\nFigueroa Rafael - WH\nFoletto Juan - WH\nFrias Katja - OL (TOL)\nFulco Sergio - SEGURIDAD PATRIMONIAL\nFunes Gaston - EXPEDICION\nGodoy Alejandro - HSMA\nLeiva Javier - PRELIQUIDACION\nMartelli Franco - EXPEDICION\nMartinez Karla - OL (TOL)\nMedina Rodrigo - EXPEDICION\nNuñez Leonardo Matias - WH\nPascucciello Ezequiel - WH\nPerez Horacio Nahuel - SEGURIDAD PATRIMONIAL\nPerez Yesica - HSMA\nQuiroga Melissa - SERVICIO MEDICO\nRatniuk Ivan - WH\nReyes Facundo - WH\nReyes Nazaret - OL (TOL)\nFernandez Micaela - SERVICIO MEDICO\nSequeira Hector - WH\nSuberviola Ana Lorena - SERVICIO MEDICO\nRivero Miguel - OL (RDV)\nRosell Mateo - People\nCunibertti Sergio - WH"
       };
       var CFG = JSON.parse(JSON.stringify(DEF)), cfgDb = null;
       function mergeCfg(d){
@@ -3622,6 +3642,7 @@ window.CIRCUITO_TEXTOS = {
         if(Array.isArray(d.sectores)) d.sectores.forEach(function(v, i){ if(i < CFG.sectores.length && v){ if(typeof v.nombre === 'string' && v.nombre.trim()) CFG.sectores[i].nombre = v.nombre.slice(0, 60); if(/^0[1-5]$/.test(v.pe || '')) CFG.sectores[i].pe = v.pe; } });
         if(typeof d.inicio === 'string' && d.inicio.trim()) CFG.inicio = d.inicio.slice(0, 400);
         if(typeof d.fin === 'string' && d.fin.trim()) CFG.fin = d.fin.slice(0, 400);
+        if(typeof d.brigada === 'string') CFG.brigada = d.brigada.slice(0, 6000);
       }
       try { mergeCfg(JSON.parse(localStorage.getItem('evacCfg') || 'null')); } catch(e){}
       function peNombre(i){ return CFG.pe[i] || ''; }
@@ -3684,6 +3705,18 @@ window.CIRCUITO_TEXTOS = {
       }
       function peSpot(i){ var p = PE[i]; return [p[2] + rr(-9, 9), p[3] + rr(-9, 9)]; }
 
+      /* Brigada: lista real; los brigadistas de gorra roja toman un nombre segun su sector */
+      function brigadaLista(){
+        return CFG.brigada.split(/\n/).map(function(l){ var m = l.split(/\s+-\s+/); return { nombre:(m[0] || '').trim(), sector:(m.slice(1).join(' - ') || '').trim() }; }).filter(function(b){ return b.nombre; });
+      }
+      var AREA_SECT = [/^WH/i, /^WH/i, /SERVICIO MEDICO|HSMA|PEOPLE/i, /PRELIQ|EXPEDICION|PEOPLE/i, /^WH/i, /^OL/i, /SEGURIDAD|EXPEDICION/i, /^WH/i];
+      var brigUsados = {};
+      function nombreBrig(ai){
+        var L = brigadaLista(), k;
+        for(k = 0; k < L.length; k++) if(!brigUsados[k] && AREA_SECT[ai].test(L[k].sector)){ brigUsados[k] = 1; return k; }
+        for(k = 0; k < L.length; k++) if(!brigUsados[k]){ brigUsados[k] = 1; return k; }
+        return -1;
+      }
       var LOOK = {
         op: function(){ return { legs:0x2b3a55, torso:0x3b4a66, vest:Math.random() < 0.5 ? 0xff7a1a : 0xd7f200, helmet:Math.random() < 0.4 ? 0xf2f2f2 : null }; },
         of: function(){ return { legs:0x2b2b2b, torso:[0xf2f2f2, 0x9fc3ff, 0x2f5fa8][(Math.random() * 3) | 0] }; },
@@ -3691,7 +3724,7 @@ window.CIRCUITO_TEXTOS = {
         br: function(){ return { legs:0x2b3a55, torso:0x3b4a66, vest:0xd32f2f, helmet:0xd32f2f }; }
       };
       function spawn(){
-        people.forEach(function(p){ root.remove(p.g); }); people = []; brig = [];
+        people.forEach(function(p){ root.remove(p.g); }); people = []; brig = []; brigUsados = {};
         peCount = PE.map(function(){ return 0; });
         /* reparte las personas y brigadistas configurados en proporcion a cada sector */
         var cnt = AREAS.map(function(a){ return a[0] * CFG.personas / BASE_TOTAL; }), cn = cnt.map(Math.floor), rest = CFG.personas;
@@ -3712,7 +3745,7 @@ window.CIRCUITO_TEXTOS = {
               for(var k = 0; k < n; k++) sweep.push([rr(r[0], r[2]), rr(r[1], r[3])]);
               var ep = exitPath(sweep[n - 1][0], sweep[n - 1][1], a); ep.pe = fixedPE(px, py, ai, ep.pe);
               p.pts = sweep.concat(ep.pts, [peSpot(ep.pe)]); p.pe = ep.pe; p.v = 1.35; p.delay = rr(0.3, 1); p.group = 0;
-              brig.push(p);
+              p.bi = nombreBrig(ai); brig.push(p);
             } else {
               var e2 = exitPath(px, py, a); e2.pe = fixedPE(px, py, ai, e2.pe);
               p.pts = e2.pts.concat([peSpot(e2.pe)]); p.pe = e2.pe; p.delay = rr(0.5, 2.5);
@@ -3725,7 +3758,7 @@ window.CIRCUITO_TEXTOS = {
         $('evModo').classList.toggle('active', modo === 'total');
         $('evKick').textContent = modo === 'total' ? 'Simulacro · evacuación total (fuera del CD)' : 'Simulacro · evacuación interna';
         lastList = '';
-        t = 0; done = false; follow = null; selPE = -1; paintPanel();
+        t = 0; done = false; follow = null; selPE = -1; paintPanel(); pintarBrigada();
       }
 
       /* ---------- sirena de bomberos (sube y baja sin parar) ---------- */
@@ -3839,7 +3872,7 @@ window.CIRCUITO_TEXTOS = {
         if(camMode === 'arriba'){ goal.ty = 0.5; goal.r = 26; goal.phi = 0.12; }
         if(camMode === 'brigadista'){ goal.ty = 1.2; goal.r = 15; goal.phi = 1.0; goal.theta = nearAng2(goal.theta, rot + Math.PI * 0.7); }
         var v = new THREE.Vector3(g.position.x, 2.6, g.position.z).project(camera);
-        if(v.z < 1){ folTag.hidden = false; folTag.textContent = follow.role === 'b' ? 'Brigadista' : (follow.leader ? 'Sigue al brigadista' : 'Persona') + (follow.arrived ? ' · llegó' : '');
+        if(v.z < 1){ folTag.hidden = false; folTag.textContent = follow.role === 'b' ? 'Brigadista' + (follow.bi >= 0 && brigadaLista()[follow.bi] ? ' · ' + brigadaLista()[follow.bi].nombre : '') : (follow.leader ? 'Sigue al brigadista' : 'Persona') + (follow.arrived ? ' · llegó' : '');
           folTag.style.transform = 'translate(' + ((v.x + 1) / 2 * window.innerWidth) + 'px,' + ((1 - v.y) / 2 * window.innerHeight) + 'px) translate(-50%,-100%)'; }
       }
 
@@ -3919,6 +3952,29 @@ window.CIRCUITO_TEXTOS = {
         paintPanel();
       };
 
+      function pintarBrigada(){
+        var L = brigadaLista(), act = {};
+        brig.forEach(function(p){ if(p.bi >= 0) act[p.bi] = p; });
+        $('evBrigN').textContent = L.length;
+        $('evBrigList').innerHTML = L.map(function(b, i){
+          return '<button type="button" class="evchip' + (act[i] ? ' act' : '') + '" data-bi="' + i + '"' + (act[i] ? ' title="Seguir con la cámara"' : '') + '><i></i><b>' + esc(b.nombre) + '</b>' + (b.sector ? '<small>' + esc(b.sector) + '</small>' : '') + '</button>';
+        }).join('');
+        acomodar();
+      }
+      function acomodar(){
+        var ctl = document.querySelector('.evctl'), st = $('evBrig');
+        if(!ctl || !evacOn) return;
+        var b1 = ctl.offsetHeight + 24; st.style.bottom = 'calc(' + b1 + 'px + env(safe-area-inset-bottom,0px))';
+        $('evSay').style.bottom = 'calc(' + (b1 + st.offsetHeight + 10) + 'px + env(safe-area-inset-bottom,0px))';
+      }
+      window.addEventListener('resize', acomodar);
+      if(window.ResizeObserver){ var ro = new ResizeObserver(acomodar); ro.observe(document.querySelector('.evctl')); ro.observe($('evBrig')); }
+      $('evBrigList').addEventListener('click', function(e){
+        var c = e.target.closest('.evchip.act'); if(!c) return;
+        var bi = +c.getAttribute('data-bi'), p = brig.filter(function(q){ return q.bi === bi; })[0]; if(!p) return;
+        setCam('brigadista'); follow = p; followWait = 0;
+      });
+      $('evBrigHide').addEventListener('click', function(){ var o = $('evBrig').classList.toggle('min'); this.textContent = o ? 'Mostrar' : 'Ocultar'; acomodar(); });
       function enterEvac(){
         if(evacOn) return;
         if(simOn) exit();
@@ -3926,7 +3982,7 @@ window.CIRCUITO_TEXTOS = {
         if(planMode) setPlan(false);
         setSpin(false);
         evacOn = true; evacUpdate = evacUpdateFn; document.body.classList.add('evac'); modo = 'interna';
-        root.visible = true; spawn(); sirenOn(); vozStart(); setCam('general');
+        root.visible = true; spawn(); sirenOn(); vozStart(); setCam('general'); setTimeout(acomodar, 50);
       }
       function exitEvac(){
         if(!evacOn) return;
@@ -3962,6 +4018,8 @@ window.CIRCUITO_TEXTOS = {
           + PE.map(function(p, i){ return '<label class="simtxrow">Nombre del PE ' + p[0] + '<input data-pe="' + i + '" maxlength="50" value="' + esc(CFG.pe[i]) + '"></label>'; }).join('')
           + '<p class="simtxsec">Sectores · cómo los nombra la voz y a qué punto van en la evacuación interna</p>'
           + SECTORES.map(function(x, i){ return '<div class="simtxrow evcfrow"><input data-sn="' + i + '" maxlength="60" value="' + esc(CFG.sectores[i].nombre) + '"><select data-sp="' + i + '">' + peOpts(CFG.sectores[i].pe) + '</select></div>'; }).join('')
+          + '<p class="simtxsec">Brigada · uno por renglón: Nombre - Sector</p>'
+          + '<label class="simtxrow"><textarea id="cfBrig" rows="8" maxlength="6000">' + esc(CFG.brigada) + '</textarea></label>'
           + '<p class="simtxsec">Mensajes de la voz</p>'
           + '<label class="simtxrow">Al empezar<textarea id="cfIni" rows="4" maxlength="400">' + esc(CFG.inicio) + '</textarea></label>'
           + '<label class="simtxrow">Al terminar<textarea id="cfFin" rows="3" maxlength="400">' + esc(CFG.fin) + '</textarea></label>';
@@ -3971,7 +4029,7 @@ window.CIRCUITO_TEXTOS = {
         var d = { personas:+$('cfPer').value, brigadistas:+$('cfBri').value, sirenaTipo:$('cfTipo').value, segInterna:+$('cfSegI').value, segTotal:+$('cfSegT').value,
           pe:PE.map(function(p, i){ return $('evCfgList').querySelector('[data-pe="' + i + '"]').value.trim(); }),
           sectores:SECTORES.map(function(x, i){ return { nombre:$('evCfgList').querySelector('[data-sn="' + i + '"]').value.trim(), pe:$('evCfgList').querySelector('[data-sp="' + i + '"]').value }; }),
-          inicio:$('cfIni').value.trim(), fin:$('cfFin').value.trim() };
+          inicio:$('cfIni').value.trim(), fin:$('cfFin').value.trim(), brigada:$('cfBrig').value };
         if(d.brigadistas > d.personas) d.brigadistas = d.personas;
         return d;
       }
